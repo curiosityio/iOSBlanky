@@ -17,7 +17,7 @@ deployment_instructions = [
 ]
 deployment_instructions += files_to_update_for_releases.map { |release_file| "#{release_file.relative_file_path}: #{release_file.deployment_instruction}" }
 
-def determineIfRelease
+def determineIfRelease(files_to_update_for_releases, info_plist_location)
   num_files_updated = 0
 
   files_to_update_for_releases.each { |release_file_array|
@@ -46,25 +46,25 @@ def determineIfRelease
   end 
 end 
 
-def assertFirebaseRemoteConfigDefaultsSet 
+def assertFirebaseRemoteConfigDefaultsSet(source_code_location)
   if git.diff_for_file("#{source_code_location}/service/service/RemoteConfig.swift") || git.diff_for_file("#{source_code_location}/service/service/FirebaseRemoteConfigDefaults.plist")
     warn 'You edited a Firebase RemoteConfig file. Did you remember to (1) create an entry in the Firebase dashboard and (2) add a default value in `FirebaseRemoteConfigDefaults.plist`?'
   end
 end
 
 if ENV["CI"] 
-  swiftformat.check_format(fail_on_error: true)
   swiftformat.binary_path = "Pods/SwiftFormat/CommandLineTool/swiftformat"
+  swiftformat.check_format(fail_on_error: true)
 
+  swiftlint.binary_path = 'Pods/SwiftLint/swiftlint'
   swiftlint.lint_files fail_on_error: true
   swiftlint.config_file = '.swiftlint.yml'
-  swiftlint.binary_path = 'Pods/SwiftLint/swiftlint'
   swiftlint.max_num_violations = 0
 
   if github.branch_for_base == "master"
     if !(github.pr_title + github.pr_body).include?("#non-release")
-      determineIfRelease()
-      assertFirebaseRemoteConfigDefaultsSet()      
+      determineIfRelease(files_to_update_for_releases, info_plist_location)
+      assertFirebaseRemoteConfigDefaultsSet(source_code_location)
     end
   end
 else 
